@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react';
 import AuthLayout from './AuthLayout';
 import './AuthPage.css';
@@ -6,14 +7,16 @@ import './AuthPage.css';
 type AuthMode = 'login' | 'signup';
 
 export default function AuthPage() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<AuthMode>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // Login form state
   const [loginData, setLoginData] = useState({
-    email: '',
-    password: ''
+    email: 'admin@northstar.com',
+    password: 'admin123'
   });
 
   // Signup form state
@@ -25,6 +28,7 @@ export default function AuthPage() {
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
+    setLoginError('');
   };
 
   const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,8 +37,17 @@ export default function AuthPage() {
 
   const handleLoginSubmit = (e: FormEvent) => {
     e.preventDefault();
+    setLoginError('');
     setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 2000);
+    setTimeout(() => {
+      setIsLoading(false);
+      if (loginData.email.toLowerCase() === 'admin@northstar.com' && loginData.password === 'admin123') {
+        sessionStorage.setItem('northstar-demo-user', loginData.email);
+        navigate('/dashboard');
+      } else {
+        setLoginError('Incorrect email or password. Use the demo credentials below.');
+      }
+    }, 500);
   };
 
   const handleSignupSubmit = (e: FormEvent) => {
@@ -73,6 +86,10 @@ export default function AuthPage() {
         <div className="auth-tab-content">
           {mode === 'login' ? (
             <form className="auth-form" onSubmit={handleLoginSubmit}>
+              <div className="demo-credentials">
+                <span>Demo account</span>
+                <p><strong>admin@northstar.com</strong><strong>admin123</strong></p>
+              </div>
               <div className="social-login">
                 <button type="button" className="social-btn google">
                   <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
@@ -150,6 +167,7 @@ export default function AuthPage() {
                   </>
                 )}
               </button>
+              {loginError && <p className="login-error" role="alert">{loginError}</p>}
             </form>
           ) : (
             <form className="auth-form" onSubmit={handleSignupSubmit}>

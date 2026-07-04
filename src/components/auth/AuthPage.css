@@ -2,6 +2,10 @@
   width: 100%;
 }
 
+.demo-credentials{padding:11px 13px;border:1px solid #ded9fb;background:#f6f4ff;border-radius:9px}.demo-credentials>span{display:block;color:#7568d5;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}.demo-credentials p{display:flex;justify-content:space-between;gap:12px;margin:0;color:#4a4555;font-size:11px}.demo-credentials strong:last-child{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.login-error{margin:-5px 0 0;padding:9px 11px;border-radius:7px;background:#fff0ef;color:#b94741;border:1px solid #f4d1ce;font-size:11px;line-height:1.4}
+
+.auth-tabs{background:#f4f3f7;border:1px solid #ece9f0;box-shadow:none;backdrop-filter:none;margin-bottom:25px}.auth-tab.active{color:#6c5ce7}.social-btn{background:white;border-color:#dedbe5;box-shadow:none;backdrop-filter:none}.social-btn:hover{transform:none;box-shadow:none}.input-wrapper input{background:white;border:1px solid #dcd9e2;box-shadow:none;backdrop-filter:none}.input-wrapper input:focus{border-color:#6c5ce7;background:white;box-shadow:0 0 0 3px #6c5ce714}.submit-btn{background:#6c5ce7;box-shadow:none}.submit-btn:hover:not(:disabled){background:#5848d1;box-shadow:none}.forgot-link{color:#6c5ce7}
+
 .auth-tabs {
   display: flex;
   gap: 8px;

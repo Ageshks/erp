@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { Moon, Sun, Globe } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Boxes } from 'lucide-react';
 import './AuthLayout.css';
 
 interface AuthLayoutProps {
@@ -9,15 +9,8 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.setAttribute('data-theme', !isDarkMode ? 'dark' : 'light');
-  };
-
   return (
-    <div className={`auth-container ${isDarkMode ? 'dark' : ''}`}>
+    <div className="auth-container">
       <div className="auth-background">
         <div className="gradient-orb orb-1"></div>
         <div className="gradient-orb orb-2"></div>
@@ -26,12 +19,10 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
 
       <div className="auth-header">
         <div className="logo">
-          <Globe className="logo-icon" />
-          <span className="logo-text">ERP Pro</span>
+          <span className="auth-brand-mark"><Boxes size={22} /></span>
+          <span className="logo-text">Northstar</span>
         </div>
-        <button className="theme-toggle" onClick={toggleDarkMode} aria-label="Toggle dark mode">
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+        <span className="secure-label">Secure business workspace</span>
       </div>
 
       <div className="auth-content">
@@ -45,7 +36,7 @@ export default function AuthLayout({ children, title, subtitle }: AuthLayoutProp
       </div>
 
       <div className="auth-footer">
-        <p>© 2025 ERP Pro. All rights reserved.</p>
+        <p>© 2026 Northstar. All rights reserved.</p>
         <div className="footer-links">
           <a href="#privacy">Privacy Policy</a>
           <a href="#terms">Terms of Service</a>

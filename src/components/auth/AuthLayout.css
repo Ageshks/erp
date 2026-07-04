@@ -278,3 +278,28 @@
     font-size: 13px;
   }
 }
+
+/* Northstar product styling */
+.auth-container { background:#f6f7fb; color:#24212d; overflow:auto; font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.auth-container.dark { background:#f6f7fb; }
+.auth-background { background:linear-gradient(115deg,#f6f7fb 0 53%,#6151db 53% 100%); }
+.gradient-orb { animation:none; filter:blur(2px); opacity:.17; }
+.orb-1 { width:360px;height:360px;background:#8f82f2;left:auto;right:4%;top:9%; }
+.orb-2 { width:220px;height:220px;background:#fff;right:24%;bottom:5%; }
+.orb-3 { display:none; }
+.auth-header { padding:24px 42px; }
+.logo { color:#24212d; }
+.auth-brand-mark { width:35px;height:35px;border-radius:10px;background:#6c5ce7;color:white;display:grid;place-items:center;box-shadow:0 5px 14px #6c5ce73b; }
+.logo-icon { filter:none; }
+.logo-text { font:700 20px 'Manrope',sans-serif; }
+.secure-label { font-size:11px;color:#fff;background:#ffffff20;border:1px solid #ffffff40;border-radius:20px;padding:7px 12px; }
+.auth-content { gap:9vw; padding:35px 8vw 55px; }
+.auth-text { color:#24212d; max-width:440px; }
+.auth-title { font:700 45px/1.15 'Manrope',sans-serif; letter-spacing:-1.8px;text-shadow:none;margin-bottom:17px; }
+.auth-subtitle { color:#777281;font-size:17px;line-height:1.6;text-shadow:none;max-width:410px; }
+.auth-card { background:white;backdrop-filter:none;border:1px solid #e7e5ed;border-radius:15px;padding:36px;max-width:430px;box-shadow:0 18px 50px #29233e1c; }
+.auth-container.dark .auth-card { background:white;border:1px solid #e7e5ed;box-shadow:0 18px 50px #29233e1c; }
+.auth-footer { color:#777281;padding:20px 42px;font-size:11px; }
+.footer-links a { color:#777281; }
+@media(max-width:968px){.auth-background{background:#f6f7fb}.secure-label{color:#777281;border-color:#ddd9e4;background:white}.auth-content{gap:24px}.auth-text{text-align:center}.auth-title{font-size:35px}.auth-card{max-width:430px}}
+@media(max-width:640px){.auth-header{padding:18px 20px}.secure-label{display:none}.auth-content{padding:22px 16px 35px}.auth-text{display:none}.auth-card{padding:25px 20px;border-radius:12px}.auth-footer{padding:18px 20px}.footer-links{gap:12px}}
