@@ -1,22 +1,25 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react';
 import AuthLayout from './AuthLayout';
+import { authApi } from '../../lib/api';
 import './AuthPage.css';
 
 type AuthMode = 'login' | 'signup';
+type AuthResponse = { access?:string; refresh?:string; token?:string; user?:unknown };
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<AuthMode>('login');
+  const location = useLocation();
+  const [mode, setMode] = useState<AuthMode>(location.pathname === '/signup' ? 'signup' : 'login');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   // Login form state
   const [loginData, setLoginData] = useState({
-    email: 'admin@northstar.com',
-    password: 'admin123'
+    email: '',
+    password: ''
   });
 
   // Signup form state
@@ -25,6 +28,7 @@ export default function AuthPage() {
     email: '',
     password: ''
   });
+  const [signupError, setSignupError] = useState('');
 
   const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
@@ -33,27 +37,49 @@ export default function AuthPage() {
 
   const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSignupData({ ...signupData, [e.target.name]: e.target.value });
+    setSignupError('');
   };
 
-  const handleLoginSubmit = (e: FormEvent) => {
+  const saveSession = (result:AuthResponse,email:string) => {
+    const token=result.access||result.token;
+    if(!token) throw new Error('The server did not return an access token.');
+    localStorage.setItem('northstar-token',token);
+    if(result.refresh) localStorage.setItem('northstar-refresh-token',result.refresh);
+    sessionStorage.setItem('northstar-demo-user',JSON.stringify(result.user||{email}));
+  };
+
+  const login = async (email:string,password:string) => {
+    const result=await authApi<AuthResponse>('/login/',{method:'POST',body:JSON.stringify({email,password})});
+    saveSession(result,email);
+  };
+
+  const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoginError('');
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await login(loginData.email,loginData.password);
+      navigate('/dashboard');
+    } catch(error) {
+      setLoginError(error instanceof Error?error.message:'Unable to sign in.');
+    } finally {
       setIsLoading(false);
-      if (loginData.email.toLowerCase() === 'admin@northstar.com' && loginData.password === 'admin123') {
-        sessionStorage.setItem('northstar-demo-user', loginData.email);
-        navigate('/dashboard');
-      } else {
-        setLoginError('Incorrect email or password. Use the demo credentials below.');
-      }
-    }, 500);
+    }
   };
 
-  const handleSignupSubmit = (e: FormEvent) => {
+  const handleSignupSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setSignupError('');
     setIsLoading(true);
-    setTimeout(() => setIsLoading(false), 2000);
+    try {
+      await authApi<AuthResponse>('/signup/',{method:'POST',body:JSON.stringify({email:signupData.email,password:signupData.password,full_name:signupData.fullName})});
+      await login(signupData.email,signupData.password);
+      navigate('/dashboard');
+    } catch(error) {
+      setSignupError(error instanceof Error?error.message:'Unable to create your account.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -86,10 +112,6 @@ export default function AuthPage() {
         <div className="auth-tab-content">
           {mode === 'login' ? (
             <form className="auth-form" onSubmit={handleLoginSubmit}>
-              <div className="demo-credentials">
-                <span>Demo account</span>
-                <p><strong>admin@northstar.com</strong><strong>admin123</strong></p>
-              </div>
               <div className="social-login">
                 <button type="button" className="social-btn google">
                   <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
@@ -262,6 +284,7 @@ export default function AuthPage() {
                   </>
                 )}
               </button>
+              {signupError && <p className="login-error" role="alert">{signupError}</p>}
             </form>
           )}
         </div>

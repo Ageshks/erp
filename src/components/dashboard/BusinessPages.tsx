@@ -1,50 +1,60 @@
-import { useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpRight, ChevronDown, Download, Filter, Mail, MoreHorizontal, Package, Plus, Search, SlidersHorizontal, UserPlus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Download, LoaderCircle, Pencil, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { api } from '../../lib/api';
+import { displayValue, editablePayload, listResource, recordTitle, resourceFields, resources, type ApiRecord, type FieldMeta, type RecordValue, type ResourceKey } from '../../lib/resources';
 
-type View = 'orders' | 'customers' | 'inventory' | 'analytics' | 'settings';
+type View=ResourceKey|'analytics'|'settings';
 
-const orderRows = [
-  ['#ORD-1048','Olivia Martin','Workspace Pro','Jul 4, 2026','$1,280.00','Completed'],
-  ['#ORD-1047','Jackson Lee','Ergo Chair','Jul 4, 2026','$860.00','Processing'],
-  ['#ORD-1046','Sophia Brown','Studio Lamp','Jul 3, 2026','$320.00','Completed'],
-  ['#ORD-1045','Noah Williams','Desk Organizer','Jul 3, 2026','$145.00','Pending'],
-  ['#ORD-1044','Emma Davis','Monitor Stand','Jul 2, 2026','$490.00','Completed'],
-  ['#ORD-1043','Liam Wilson','Task Chair','Jul 2, 2026','$710.00','Cancelled'],
-  ['#ORD-1042','Ava Anderson','Oak Desk','Jul 1, 2026','$1,620.00','Processing'],
-];
-const customers = [
-  ['OM','Olivia Martin','olivia@acme.co','Acme Inc.','12','$8,420','Active'],
-  ['JL','Jackson Lee','jackson@north.io','North Labs','8','$5,160','Active'],
-  ['SB','Sophia Brown','sophia@studio.co','Studio & Co.','15','$11,890','Active'],
-  ['NW','Noah Williams','noah@bright.in','Brightworks','4','$2,310','Inactive'],
-  ['ED','Emma Davis','emma@field.com','Field House','7','$4,980','Active'],
-];
-const products = [
-  ['Workspace Pro','OFF-1001','Office Furniture','126','34','$1,280','Healthy'],
-  ['Ergo Chair','OFF-1002','Office Furniture','42','18','$430','Low stock'],
-  ['Studio Lamp','LGT-2041','Lighting','8','24','$160','Low stock'],
-  ['Oak Desk','OFF-1014','Office Furniture','0','10','$810','Out of stock'],
-  ['Monitor Stand','ACC-3205','Accessories','84','20','$245','Healthy'],
-  ['Desk Organizer','ACC-3210','Accessories','163','30','$72','Healthy'],
-];
-
-function PageHeader({ title, subtitle, action, actionIcon = <Plus size={17}/> }: { title:string; subtitle:string; action:string; actionIcon?:React.ReactNode }) {
-  return <div className="workspace-heading"><div><p className="breadcrumb">Northstar / {title}</p><h1>{title}</h1><p>{subtitle}</p></div><button className="primary-button" onClick={() => alert(`${action} flow is ready to connect.`)}>{actionIcon}{action}</button></div>;
+function errorMessage(error:unknown){return error instanceof Error?error.message:'Something went wrong.'}
+function usefulColumns(rows:ApiRecord[],fields:Record<string,FieldMeta>){
+  const keys=Object.keys(fields).length?Object.keys(fields):Object.keys(rows[0]||{});
+  return keys.filter(key=>key!=='id'&&!fields[key]?.read_only).slice(0,7);
 }
-function Toolbar({ placeholder }: { placeholder:string }) {
-  return <div className="data-toolbar"><div className="inline-search"><Search size={16}/><input placeholder={placeholder}/></div><button><Filter size={15}/> Filter</button><button><SlidersHorizontal size={15}/> Columns</button><button className="export"><Download size={15}/> Export</button></div>;
-}
-function Status({ children }: { children:string }) { return <span className={`status ${children.toLowerCase().replaceAll(' ','-')}`}>{children}</span>; }
 
-function OrdersPage() {
-  const [tab,setTab]=useState('All orders');
-  return <><PageHeader title="Sales orders" subtitle="Create, track, and fulfil customer orders." action="New sales order"/><div className="mini-metrics">
-    <div><span>Orders this month</span><strong>1,284</strong><small className="positive"><ArrowUp size={12}/> 8.2%</small></div><div><span>Awaiting fulfilment</span><strong>46</strong><small>12 due today</small></div><div><span>Order value</span><strong>$48,290</strong><small className="positive"><ArrowUp size={12}/> 12.5%</small></div><div><span>Returns</span><strong>18</strong><small className="negative"><ArrowDown size={12}/> 2.4%</small></div>
-  </div><section className="panel data-panel"><div className="data-tabs">{['All orders','Pending','Processing','Completed'].map(x=><button key={x} className={tab===x?'active':''} onClick={()=>setTab(x)}>{x}</button>)}</div><Toolbar placeholder="Search sales orders..."/><div className="table-scroll"><table><thead><tr><th>Order</th><th>Customer</th><th>Product</th><th>Order date</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody>{orderRows.filter(r=>tab==='All orders'||r[5]===tab).map(r=><tr key={r[0]}>{r.slice(0,5).map((c,i)=><td key={c}>{i===0||i===4?<strong>{c}</strong>:c}</td>)}<td><Status>{r[5]}</Status></td><td><MoreHorizontal size={17}/></td></tr>)}</tbody></table></div><Pager count="1–7 of 1,284"/></section></>;
+function RecordModal({resource,fields,record,onClose,onSaved}:{resource:ResourceKey;fields:Record<string,FieldMeta>;record:ApiRecord|null;onClose:()=>void;onSaved:()=>void}){
+  const [values,setValues]=useState<Record<string,RecordValue>>(()=>Object.fromEntries(Object.keys(fields).map(key=>[key,record?.[key]??''])));
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState('');
+  const visible=Object.entries(fields).filter(([,field])=>!field.read_only);
+  const submit=async(e:FormEvent)=>{
+    e.preventDefault();setSaving(true);setError('');
+    try{
+      const endpoint=record?.id?`${resources[resource].endpoint}${record.id}/`:resources[resource].endpoint;
+      await api(endpoint,{method:record?.id?'PATCH':'POST',body:JSON.stringify(editablePayload(values,fields))});
+      onSaved();
+    }catch(err){setError(errorMessage(err));}finally{setSaving(false)}
+  };
+  return <div className="crud-overlay" role="presentation" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><form className="crud-modal" onSubmit={submit}>
+    <div className="crud-modal-head"><div><h2>{record?'Edit':'Create'} {resources[resource].label}</h2><p>Fields are provided by the live database API.</p></div><button type="button" onClick={onClose}><X/></button></div>
+    <div className="crud-form-grid">{visible.map(([name,field])=><label key={name} className={field.type==='string'&&name.includes('description')?'wide':''}><span>{field.label||name.replaceAll('_',' ')}</span>{field.choices?.length?<select required={field.required} value={String(values[name]??'')} onChange={e=>setValues({...values,[name]:e.target.value})}><option value="">Select…</option>{field.choices.map(choice=><option key={String(choice.value)} value={String(choice.value)}>{choice.display_name}</option>)}</select>:field.type==='boolean'?<input type="checkbox" checked={Boolean(values[name])} onChange={e=>setValues({...values,[name]:e.target.checked})}/>:<input type={field.type==='integer'||field.type==='float'||field.type==='decimal'?'number':name.includes('email')?'email':name.includes('date')||name.includes('deadline')?'date':'text'} step={field.type==='decimal'||field.type==='float'?'any':undefined} required={field.required} value={String(values[name]??'')} onChange={e=>setValues({...values,[name]:e.target.value})} placeholder={field.help_text}/>}</label>)}</div>
+    {error&&<p className="crud-error" role="alert">{error}</p>}
+    <div className="crud-actions"><button type="button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving}>{saving?<LoaderCircle className="spin" size={17}/>:null}{record?'Save changes':`Create ${resources[resource].label.toLowerCase()}`}</button></div>
+  </form></div>;
 }
-function CustomersPage(){return <><PageHeader title="Customers" subtitle="Manage customer details and account activity." action="Add customer" actionIcon={<UserPlus size={17}/>}/><div className="mini-metrics three"><div><span>Total customers</span><strong>3,842</strong><small className="positive"><ArrowUp size={12}/> 4.6% this month</small></div><div><span>Active customers</span><strong>3,216</strong><small>83.7% of total</small></div><div><span>Average customer value</span><strong>$1,264</strong><small className="positive"><ArrowUp size={12}/> $84 this month</small></div></div><section className="panel data-panel"><Toolbar placeholder="Search name, email or company..."/><div className="table-scroll"><table><thead><tr><th>Customer</th><th>Email</th><th>Company</th><th>Orders</th><th>Total spent</th><th>Status</th><th></th></tr></thead><tbody>{customers.map(r=><tr key={r[1]}><td><div className="customer"><span className="avatar lilac">{r[0]}</span><strong>{r[1]}</strong></div></td><td><span className="mail-cell"><Mail size={13}/>{r[2]}</span></td>{r.slice(3,6).map((c,i)=><td key={c}>{i===2?<strong>{c}</strong>:c}</td>)}<td><Status>{r[6]}</Status></td><td><MoreHorizontal size={17}/></td></tr>)}</tbody></table></div><Pager count="1–5 of 3,842"/></section></>}
-function InventoryPage(){return <><PageHeader title="Inventory" subtitle="Monitor stock levels, products, and reorder points." action="Add item"/><div className="inventory-alert"><div><Package/><span><strong>18 products need your attention</strong><small>10 are low in stock and 8 are currently unavailable.</small></span></div><button>Review items <ArrowUpRight size={15}/></button></div><div className="mini-metrics"><div><span>Total stock value</span><strong>$184,650</strong><small>Across 1,842 items</small></div><div><span>Items in stock</span><strong>1,402</strong><small className="positive">76% healthy stock</small></div><div><span>Low stock</span><strong>312</strong><small className="warning">17% need reorder</small></div><div><span>Out of stock</span><strong>128</strong><small className="negative">7% unavailable</small></div></div><section className="panel data-panel"><Toolbar placeholder="Search products or SKU..."/><div className="table-scroll"><table><thead><tr><th>Item name</th><th>SKU</th><th>Category</th><th>Available</th><th>Reorder at</th><th>Unit price</th><th>Stock status</th></tr></thead><tbody>{products.map(r=><tr key={r[1]}>{r.slice(0,6).map((c,i)=><td key={c}>{i===0?<strong>{c}</strong>:c}</td>)}<td><Status>{r[6]}</Status></td></tr>)}</tbody></table></div><Pager count="1–6 of 1,842"/></section></>}
-function AnalyticsPage(){return <><PageHeader title="Analytics" subtitle="Understand performance across your entire business." action="Export report" actionIcon={<Download size={17}/>}/><div className="report-filter"><span>Business overview</span><button>Jul 1 – Jul 31, 2026 <ChevronDown size={14}/></button></div><div className="mini-metrics"><div><span>Gross revenue</span><strong>$64,820</strong><small className="positive"><ArrowUp size={12}/> 14.2%</small></div><div><span>Net profit</span><strong>$21,430</strong><small className="positive"><ArrowUp size={12}/> 9.8%</small></div><div><span>Expenses</span><strong>$18,270</strong><small className="negative"><ArrowUp size={12}/> 3.1%</small></div><div><span>Profit margin</span><strong>33.1%</strong><small className="positive"><ArrowUp size={12}/> 1.8%</small></div></div><div className="report-grid"><section className="panel report-chart"><div className="panel-heading"><div><h2>Revenue and expenses</h2><p>Monthly financial performance</p></div><span className="legend"><i/> Revenue <i/> Expenses</span></div><div className="bar-chart">{[42,55,48,68,62,80,72,91,84,76,94,88].map((h,i)=><div key={i}><i style={{height:`${h}%`}}/><i style={{height:`${h*.52}%`}}/><span>{['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'][i]}</span></div>)}</div></section><section className="panel top-products"><div className="panel-heading"><div><h2>Top products</h2><p>By revenue this month</p></div></div>{[['Workspace Pro','$18,420','38%'],['Oak Desk','$11,680','24%'],['Ergo Chair','$8,940','18%'],['Monitor Stand','$5,120','11%']].map((p,i)=><div className="rank-row" key={p[0]}><b>{i+1}</b><span>{p[0]}<small>{p[2]} of revenue</small></span><strong>{p[1]}</strong></div>)}</section></div></>}
-function SettingsPage(){const [saved,setSaved]=useState(false);return <><PageHeader title="Settings" subtitle="Manage your organization and workspace preferences." action="Save changes" actionIcon={null}/><div className="settings-layout"><aside className="settings-nav">{['Organization','Users & roles','Sales & taxes','Inventory','Notifications','Integrations'].map((x,i)=><button className={i===0?'active':''} key={x}>{x}</button>)}</aside><section className="panel settings-form"><div className="settings-title"><h2>Organization profile</h2><p>This information appears on documents and customer emails.</p></div><div className="logo-upload"><div>N</div><span><strong>Organization logo</strong><small>PNG, JPG or SVG. Maximum 2 MB.</small><button>Change logo</button></span></div><div className="form-grid"><label>Organization name<input defaultValue="Northstar Workspace"/></label><label>Business type<select defaultValue="Retail"><option>Retail</option><option>Services</option><option>Manufacturing</option></select></label><label>Business email<input defaultValue="hello@northstar.co"/></label><label>Phone number<input defaultValue="+91 98765 43210"/></label><label className="full">Business address<input defaultValue="14 Residency Road, Bengaluru, Karnataka 560025"/></label><label>Base currency<select defaultValue="USD"><option>USD — US Dollar</option><option>INR — Indian Rupee</option></select></label><label>Fiscal year<select><option>April – March</option><option>January – December</option></select></label></div><div className="settings-actions"><button onClick={()=>setSaved(true)}>Save changes</button>{saved&&<span>Changes saved successfully.</span>}</div></section></div></>}
-function Pager({count}:{count:string}){return <div className="pager"><span>Showing {count}</span><div><button disabled>Previous</button><button>Next</button></div></div>}
-export default function BusinessPage({view}:{view:View}){return <div className="business-page">{view==='orders'?<OrdersPage/>:view==='customers'?<CustomersPage/>:view==='inventory'?<InventoryPage/>:view==='analytics'?<AnalyticsPage/>:<SettingsPage/>}</div>}
+
+function ResourcePage({resource}:{resource:ResourceKey}){
+  const config=resources[resource];
+  const [rows,setRows]=useState<ApiRecord[]>([]);const [fields,setFields]=useState<Record<string,FieldMeta>>({});
+  const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [query,setQuery]=useState('');const [editing,setEditing]=useState<ApiRecord|null|undefined>(undefined);
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const [data,meta]=await Promise.all([listResource(resource),resourceFields(resource)]);setRows(data);setFields(meta)}catch(err){setError(errorMessage(err))}finally{setLoading(false)}},[resource]);
+  useEffect(()=>{void load()},[load]);
+  const filtered=useMemo(()=>rows.filter(row=>JSON.stringify(row).toLowerCase().includes(query.toLowerCase())),[rows,query]);
+  const columns=useMemo(()=>usefulColumns(rows,fields),[rows,fields]);
+  const remove=async(row:ApiRecord)=>{if(!row.id||!window.confirm(`Delete ${recordTitle(row)}?`))return;try{await api(`${config.endpoint}${row.id}/`,{method:'DELETE'});void load()}catch(err){setError(errorMessage(err))}};
+  const exportCsv=()=>{const csv=[columns.join(','),...filtered.map(row=>columns.map(key=>JSON.stringify(row[key]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`${resource}.csv`;a.click();URL.revokeObjectURL(a.href)};
+  return <div className="business-page"><div className="workspace-heading"><div><p className="breadcrumb">Northstar / {config.plural}</p><h1>{config.plural}</h1><p>Live records from your ERP database.</p></div><button className="primary-button" onClick={()=>setEditing(null)} disabled={!Object.keys(fields).length}><Plus size={17}/> Add {config.label.toLowerCase()}</button></div>
+    <section className="mini-metrics three"><div><span>Total records</span><strong>{rows.length}</strong><small>Live database count</small></div><div><span>Visible results</span><strong>{filtered.length}</strong><small>After search filters</small></div><div><span>Resource status</span><strong>{error?'Issue':'Connected'}</strong><small>{error?'Check the message below':'Synced with Railway'}</small></div></section>
+    <section className="panel data-panel"><div className="data-toolbar"><div className="inline-search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={`Search ${config.plural.toLowerCase()}...`}/></div><button onClick={()=>void load()}><RefreshCw size={15}/> Refresh</button><button className="export" onClick={exportCsv} disabled={!filtered.length}><Download size={15}/> Export</button></div>
+      {error&&<p className="page-error" role="alert">{error}</p>}{loading?<div className="loading-state"><LoaderCircle className="spin"/>Loading {config.plural.toLowerCase()}…</div>:!filtered.length?<div className="empty-state">No {config.plural.toLowerCase()} found. Create the first one.</div>:<div className="table-scroll"><table><thead><tr><th>{config.label}</th>{columns.slice(1).map(key=><th key={key}>{fields[key]?.label||key.replaceAll('_',' ')}</th>)}<th>Actions</th></tr></thead><tbody>{filtered.map((row,index)=><tr key={String(row.id??index)}><td><strong>{recordTitle(row)}</strong></td>{columns.slice(1).map(key=><td key={key}>{displayValue(row[key])}</td>)}<td><div className="row-actions"><button title="Edit" onClick={()=>setEditing(row)}><Pencil size={15}/></button><button title="Delete" onClick={()=>void remove(row)}><Trash2 size={15}/></button></div></td></tr>)}</tbody></table></div>}
+    </section>{editing!==undefined&&<RecordModal resource={resource} fields={fields} record={editing} onClose={()=>setEditing(undefined)} onSaved={()=>{setEditing(undefined);void load()}}/>}</div>;
+}
+
+function ReportsPage(){
+  const [data,setData]=useState<Partial<Record<ResourceKey,ApiRecord[]>>>({});const [loading,setLoading]=useState(true);const [error,setError]=useState('');
+  useEffect(()=>{Promise.all((Object.keys(resources) as ResourceKey[]).map(async key=>[key,await listResource(key)] as const)).then(entries=>setData(Object.fromEntries(entries))).catch(err=>setError(errorMessage(err))).finally(()=>setLoading(false))},[]);
+  const money=(rows:ApiRecord[]|undefined)=>rows?.reduce((sum,row)=>sum+Number(row.total||row.amount||row.price||row.value||0),0)||0;
+  if(loading)return <div className="loading-state page-loading"><LoaderCircle className="spin"/>Building live reports…</div>;
+  return <div className="business-page"><div className="workspace-heading"><div><p className="breadcrumb">Northstar / Reports</p><h1>Reports</h1><p>Live operational summary across all database modules.</p></div></div>{error&&<p className="page-error">{error}</p>}<div className="mini-metrics"><div><span>Sales records</span><strong>{data.orders?.length||0}</strong><small>Invoices and orders</small></div><div><span>Recorded value</span><strong>{money(data.orders).toLocaleString()}</strong><small>Based on invoice totals</small></div><div><span>Products</span><strong>{data.inventory?.length||0}</strong><small>Inventory catalogue</small></div><div><span>Active projects</span><strong>{data.projects?.length||0}</strong><small>Project records</small></div></div><div className="report-grid">{(Object.keys(resources) as ResourceKey[]).map(key=><section className="panel report-summary" key={key}><h2>{resources[key].plural}</h2><strong>{data[key]?.length||0}</strong><p>records in the database</p></section>)}</div></div>;
+}
+
+export default function BusinessPage({view}:{view:View}){return view==='analytics'?<ReportsPage/>:view==='settings'?<ResourcePage resource="employees"/>:<ResourcePage resource={view}/>}

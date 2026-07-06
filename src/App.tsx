@@ -6,7 +6,7 @@ import Dashboard from './components/dashboard/Dashboard';
 import './App.css';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  return sessionStorage.getItem('northstar-demo-user') ? children : <Navigate to="/login" replace />;
+  return localStorage.getItem('northstar-token') ? children : <Navigate to="/login" replace />;
 }
 
 function App() {
@@ -19,6 +19,9 @@ function App() {
         <Route path="/customers" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/employees" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/vendors" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/projects" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/login" element={<AuthPage />} />
         <Route path="/signup" element={<AuthPage />} />
